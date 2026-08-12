@@ -1,4 +1,11 @@
 import { useState, useEffect } from "react";
+import {
+  createUserWithEmailAndPassword,
+  onAuthStateChanged,
+  signInWithEmailAndPassword,
+  signOut,
+} from "firebase/auth";
+import { auth } from "./firebase";
 import samsungS24 from "./assets/samsung-s24.jpg";
 import "./App.css";
 
@@ -63,6 +70,8 @@ function App() {
   const [errors, setErrors] = useState({});
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [userEmail, setUserEmail] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [authError, setAuthError] = useState("");
   const [showProductDetails, setShowProductDetails] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [detailsQuantity, setDetailsQuantity] = useState(1);
@@ -124,6 +133,20 @@ function App() {
   useEffect(() => {
     localStorage.setItem("shopeasy_reviews", JSON.stringify(reviews));
   }, [reviews]);
+
+  // Keep login state in sync with Firebase Auth session
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      if (user) {
+        setIsLoggedIn(true);
+        setUserEmail(user.email || "");
+      } else {
+        setIsLoggedIn(false);
+        setUserEmail("");
+      }
+    });
+    return unsubscribe;
+  }, []);
 
   const filteredProducts = products.filter((product) => {
     const matchesSearch = product.name
@@ -302,31 +325,84 @@ function App() {
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleLogin = (e) => {
+  const handleLogin = async (e) => {
     e.preventDefault();
+    setAuthError("");
     if (validateForm()) {
-      setIsLoggedIn(true);
-      setUserEmail(formData.email);
-      setShowLogin(false);
-      setFormData({ email: "", password: "", confirmPassword: "" });
-      setErrors({});
+      setSubmitting(true);
+      try {
+        await signInWithEmailAndPassword(
+          auth,
+          formData.email,
+          formData.password
+        );
+        setIsLoggedIn(true);
+        setUserEmail(formData.email);
+        setShowLogin(false);
+        setFormData({ email: "", password: "", confirmPassword: "" });
+        setErrors({});
+      } catch (error) {
+        setAuthError(getAuthErrorMessage(error.code));
+      } finally {
+        setSubmitting(false);
+      }
     }
   };
 
-  const handleSignup = (e) => {
+  const handleSignup = async (e) => {
     e.preventDefault();
+    setAuthError("");
     if (validateForm()) {
-      setIsLoggedIn(true);
-      setUserEmail(formData.email);
-      setShowLogin(false);
-      setFormData({ email: "", password: "", confirmPassword: "" });
-      setErrors({});
+      setSubmitting(true);
+      try {
+        await createUserWithEmailAndPassword(
+          auth,
+          formData.email,
+          formData.password
+        );
+        setIsLoggedIn(true);
+        setUserEmail(formData.email);
+        setShowLogin(false);
+        setFormData({ email: "", password: "", confirmPassword: "" });
+        setErrors({});
+      } catch (error) {
+        setAuthError(getAuthErrorMessage(error.code));
+      } finally {
+        setSubmitting(false);
+      }
     }
   };
 
-  const handleLogout = () => {
-    setIsLoggedIn(false);
-    setUserEmail("");
+  const handleLogout = async () => {
+    try {
+      await signOut(auth);
+    } finally {
+      setIsLoggedIn(false);
+      setUserEmail("");
+    }
+  };
+
+  const getAuthErrorMessage = (code) => {
+    switch (code) {
+      case "auth/invalid-credential":
+      case "auth/wrong-password":
+      case "auth/user-not-found":
+        return "Invalid email or password";
+      case "auth/email-already-in-use":
+        return "An account with this email already exists";
+      case "auth/weak-password":
+        return "Password is too weak";
+      case "auth/invalid-email":
+        return "Please enter a valid email";
+      case "auth/user-disabled":
+        return "This account has been disabled";
+      case "auth/too-many-requests":
+        return "Too many attempts. Please try again later";
+      case "auth/network-request-failed":
+        return "Network error. Please check your connection";
+      default:
+        return "Authentication failed. Please try again";
+    }
   };
 
   const openLoginModal = () => {
@@ -334,18 +410,21 @@ function App() {
     setIsSignupMode(false);
     setFormData({ email: "", password: "", confirmPassword: "" });
     setErrors({});
+    setAuthError("");
   };
 
   const closeLoginModal = () => {
     setShowLogin(false);
     setFormData({ email: "", password: "", confirmPassword: "" });
     setErrors({});
+    setAuthError("");
   };
 
   const toggleSignupMode = () => {
     setIsSignupMode(!isSignupMode);
     setFormData({ email: "", password: "", confirmPassword: "" });
     setErrors({});
+    setAuthError("");
   };
 
   const openProductDetails = (product) => {
@@ -1345,7 +1424,15 @@ How can I help you today? 💙`;
                 </div>
               )}
 
-              <button type="submit" className="form-submit-btn">
+              {authError && (
+                <span className="error-message auth-error">{authError}</span>
+              )}
+
+              <button
+                type="submit"
+                className="form-submit-btn"
+                disabled={submitting}
+              >
                 {isSignupMode ? "Create Account" : "Login"}
               </button>
             </form>

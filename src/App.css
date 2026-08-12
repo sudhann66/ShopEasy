@@ -697,6 +697,23 @@ footer h2 {
   transform: translateY(0);
 }
 
+.form-submit-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+.auth-error {
+  display: block;
+  text-align: center;
+  padding: 8px 10px;
+  background: rgba(211, 47, 47, 0.08);
+  border: 1px solid rgba(211, 47, 47, 0.25);
+  border-radius: 5px;
+  font-size: 13px;
+}
+
 .modal-footer {
   text-align: center;
   margin-top: 22px;
