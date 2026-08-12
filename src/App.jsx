@@ -342,7 +342,7 @@ function App() {
         setFormData({ email: "", password: "", confirmPassword: "" });
         setErrors({});
       } catch (error) {
-        setAuthError(getAuthErrorMessage(error.code));
+        setAuthError(getAuthErrorMessage(error));
       } finally {
         setSubmitting(false);
       }
@@ -366,7 +366,7 @@ function App() {
         setFormData({ email: "", password: "", confirmPassword: "" });
         setErrors({});
       } catch (error) {
-        setAuthError(getAuthErrorMessage(error.code));
+        setAuthError(getAuthErrorMessage(error));
       } finally {
         setSubmitting(false);
       }
@@ -382,7 +382,8 @@ function App() {
     }
   };
 
-  const getAuthErrorMessage = (code) => {
+  const getAuthErrorMessage = (error) => {
+    const code = error?.code;
     switch (code) {
       case "auth/invalid-credential":
       case "auth/wrong-password":
@@ -400,8 +401,16 @@ function App() {
         return "Too many attempts. Please try again later";
       case "auth/network-request-failed":
         return "Network error. Please check your connection";
+      case "auth/operation-not-allowed":
+        return "Email/Password sign-in is not enabled for this project";
+      case "auth/invalid-api-key":
+      case "auth/api-key-not-valid":
+        return "Firebase API key is invalid. Check the config in src/firebase.js";
+      case "auth/unauthorized-domain":
+        return "This domain is not authorized. Add it in Firebase console > Authentication > Settings";
       default:
-        return "Authentication failed. Please try again";
+        // Show the real Firebase error so the actual cause is visible
+        return error?.message || "Authentication failed. Please try again";
     }
   };
 

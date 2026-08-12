@@ -2,7 +2,7 @@ import { initializeApp } from "firebase/app";
 import { getAuth } from "firebase/auth";
 
 const firebaseConfig = {
-    apiKey: "AIzaSyBff-KrnIRvwv7KCbDiLLmLOWpUak_6ACA",
+    apiKey: "AIzaSyBff-KrnIRvwv7KCbDiLLmLOWpUaK_6ACA",
     authDomain: "shopeasy-d8c6d.firebaseapp.com",
     projectId: "shopeasy-d8c6d",
     storageBucket: "shopeasy-d8c6d.firebasestorage.app",
