@@ -1,11 +1,11 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   createUserWithEmailAndPassword,
   onAuthStateChanged,
   signInWithEmailAndPassword,
   signOut,
 } from "firebase/auth";
-import { doc, setDoc } from "firebase/firestore";
+import { doc, getDoc, setDoc } from "firebase/firestore";
 import { auth, db } from "./firebase";
 import samsungS24 from "./assets/samsung-s24.jpg";
 import "./App.css";
@@ -62,6 +62,14 @@ function App() {
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState("All");
   const [cart, setCart] = useState([]);
+  // UID of the currently authenticated user, used to persist the cart.
+  const [currentUserUid, setCurrentUserUid] = useState(null);
+  // Becomes true once the current user's saved cart has finished loading.
+  const [cartLoaded, setCartLoaded] = useState(false);
+  // Tracks the last cart value written to Firestore so that loading a saved
+  // cart doesn't immediately write it back, and so users with no saved cart
+  // don't get a pointless empty write on sign-in.
+  const lastSavedCartRef = useRef(null);
   const [showCart, setShowCart] = useState(false);
   const [wishlist, setWishlist] = useState([]);
   const [showWishlist, setShowWishlist] = useState(false);
@@ -141,13 +149,70 @@ function App() {
       if (user) {
         setIsLoggedIn(true);
         setUserEmail(user.email || "");
+        setCurrentUserUid(user.uid);
+        // Reset so the saved cart is (re)loaded before the local cart can be
+        // written back to Firestore.
+        setCartLoaded(false);
       } else {
         setIsLoggedIn(false);
         setUserEmail("");
+        setCurrentUserUid(null);
+        setCartLoaded(false);
+        lastSavedCartRef.current = null;
+        // Clear the local cart when the user logs out.
+        setCart([]);
       }
     });
     return unsubscribe;
   }, []);
+
+  // Load the current user's saved cart from /users/{uid}. Falls back to an
+  // empty cart when the user has no saved "cart" field.
+  useEffect(() => {
+    if (!currentUserUid) return;
+    let cancelled = false;
+    const loadSavedCart = async () => {
+      try {
+        const docSnap = await getDoc(doc(db, "users", currentUserUid));
+        if (cancelled) return;
+        const data = docSnap.data();
+        const savedCart = Array.isArray(data?.cart) ? data.cart : [];
+        lastSavedCartRef.current = savedCart;
+        setCart(savedCart);
+      } catch (err) {
+        console.error("Failed to load saved cart from Firestore:", err);
+        if (!cancelled) setCart([]);
+      } finally {
+        if (!cancelled) setCartLoaded(true);
+      }
+    };
+    loadSavedCart();
+    return () => {
+      cancelled = true;
+    };
+  }, [currentUserUid]);
+
+  // Persist the cart to the user's Firestore document whenever its contents
+  // change. merge: true keeps existing profile fields (email, name, createdAt)
+  // intact. Saving is gated on cartLoaded so the initial empty cart can never
+  // overwrite a previously saved cart before it has finished loading.
+  useEffect(() => {
+    if (!currentUserUid || !cartLoaded) return;
+    // Skip the write when nothing actually changed (e.g. right after loading
+    // the saved cart, or for users who have no saved cart).
+    if (JSON.stringify(lastSavedCartRef.current) === JSON.stringify(cart)) {
+      return;
+    }
+    const saveCart = async () => {
+      try {
+        await setDoc(doc(db, "users", currentUserUid), { cart }, { merge: true });
+        lastSavedCartRef.current = cart;
+      } catch (err) {
+        console.error("Failed to save cart to Firestore:", err);
+      }
+    };
+    saveCart();
+  }, [cart, cartLoaded, currentUserUid]);
 
   const filteredProducts = products.filter((product) => {
     const matchesSearch = product.name
