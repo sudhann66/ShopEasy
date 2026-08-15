@@ -5,7 +5,8 @@ import {
   signInWithEmailAndPassword,
   signOut,
 } from "firebase/auth";
-import { auth } from "./firebase";
+import { doc, setDoc } from "firebase/firestore";
+import { auth, db } from "./firebase";
 import samsungS24 from "./assets/samsung-s24.jpg";
 import "./App.css";
 
@@ -355,11 +356,30 @@ function App() {
     if (validateForm()) {
       setSubmitting(true);
       try {
-        await createUserWithEmailAndPassword(
+        const userCredential = await createUserWithEmailAndPassword(
           auth,
           formData.email,
           formData.password
         );
+        const user = userCredential.user;
+
+        // Save the user's profile to Firestore using the Auth UID as the
+        // document ID. Wrapped in its own try/catch so a profile-save failure
+        // doesn't roll back the successfully created account, while still
+        // surfacing the error through the existing authError UI.
+        try {
+          await setDoc(doc(db, "users", user.uid), {
+            email: formData.email,
+            name: formData.name || "",
+            createdAt: new Date(),
+          });
+        } catch (err) {
+          console.error("Firestore profile save failed:", err);
+          setAuthError(
+            "Account created, but saving your profile failed. Please try again."
+          );
+        }
+
         setIsLoggedIn(true);
         setUserEmail(formData.email);
         setShowLogin(false);
