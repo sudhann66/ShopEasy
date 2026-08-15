@@ -10,6 +10,11 @@ import { auth, db } from "./firebase";
 import samsungS24 from "./assets/samsung-s24.jpg";
 import "./App.css";
 
+// Firebase UID of the ShopEasy administrator account. Only this user can
+// access the Admin Dashboard and (in later phases) perform admin-only
+// Firestore operations. Keep this in sync with isAdmin() in firestore.rules.
+const ADMIN_UID = "CQ15nDJstuac7WgkiYgjRtSvJpr2";
+
 const products = [
   { id: 1, name: "Samsung Galaxy S24", category: "Mobiles", price: 54999, rating: 4.5, emoji: "📱", image: samsungS24, description: "Experience stunning visuals with Samsung's latest flagship. 120Hz display, powerful processor, and all-day battery life. Perfect for gaming and photography." },
   { id: 2, name: "iPhone 15", category: "Mobiles", price: 59999, rating: 4.7, emoji: "📱", description: "The ultimate iPhone. A14 Bionic chip, advanced camera system, and titanium design. Seamlessly integrated with Apple ecosystem." },
@@ -100,6 +105,10 @@ function App() {
   const [orders, setOrders] = useState([]);
   const [showMyOrders, setShowMyOrders] = useState(false);
 
+  // Admin Dashboard state (admin-only feature)
+  const [showAdminDashboard, setShowAdminDashboard] = useState(false);
+  const [activeAdminSection, setActiveAdminSection] = useState("products");
+
   // Reviews State
   const [reviews, setReviews] = useState(() => {
     try {
@@ -161,6 +170,8 @@ function App() {
         lastSavedCartRef.current = null;
         // Clear the local cart when the user logs out.
         setCart([]);
+        // Close the Admin Dashboard when the session ends.
+        setShowAdminDashboard(false);
       }
     });
     return unsubscribe;
@@ -213,6 +224,12 @@ function App() {
     };
     saveCart();
   }, [cart, cartLoaded, currentUserUid]);
+
+  // True only for the configured admin account. Normal users never see or
+  // access the Admin Dashboard.
+  const isAdmin = currentUserUid === ADMIN_UID;
+  // TEMP DEBUG — remove after diagnosing the missing Admin button.
+  console.log("ADMIN DEBUG", { currentUserUid, ADMIN_UID, isAdmin });
 
   const filteredProducts = products.filter((product) => {
     const matchesSearch = product.name
@@ -967,6 +984,21 @@ How can I help you today? 💙`;
         <button className="login-btn" onClick={openLoginModal}>
           {isLoggedIn ? `${userEmail.split("@")[0]}` : "Login"}
         </button>
+
+        {/* Admin Dashboard button — only shown for the admin account */}
+        {isAdmin && (
+          <button
+            className="admin-btn"
+            onClick={() => {
+              setShowAdminDashboard(true);
+              setShowCart(false);
+              setShowWishlist(false);
+              setShowMyOrders(false);
+            }}
+          >
+            🛠️ Admin
+          </button>
+        )}
 
         <button
           className="wishlist-btn"
@@ -2143,6 +2175,115 @@ How can I help you today? 💙`;
             >
               Continue Shopping
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* Admin Dashboard (only visible to the admin account) */}
+      {isAdmin && showAdminDashboard && (
+        <div
+          className="admin-overlay"
+          onClick={() => setShowAdminDashboard(false)}
+        >
+          <div className="admin-modal" onClick={(e) => e.stopPropagation()}>
+            <button
+              className="admin-close-btn"
+              onClick={() => setShowAdminDashboard(false)}
+              title="Close Admin Dashboard"
+            >
+              ✕
+            </button>
+
+            <div className="admin-header">
+              <h1>🛠️ Admin Dashboard</h1>
+              <p>
+                Signed in as the ShopEasy administrator. Sections below are
+                placeholders — management features arrive in the next phase.
+              </p>
+            </div>
+
+            <div className="admin-body">
+              <nav className="admin-sidebar">
+                <button
+                  className={`admin-nav-item ${activeAdminSection === "products" ? "active" : ""}`}
+                  onClick={() => setActiveAdminSection("products")}
+                >
+                  📦 Products
+                </button>
+                <button
+                  className={`admin-nav-item ${activeAdminSection === "orders" ? "active" : ""}`}
+                  onClick={() => setActiveAdminSection("orders")}
+                >
+                  🧾 Orders
+                </button>
+                <button
+                  className={`admin-nav-item ${activeAdminSection === "users" ? "active" : ""}`}
+                  onClick={() => setActiveAdminSection("users")}
+                >
+                  👥 Users
+                </button>
+                <button
+                  className={`admin-nav-item ${activeAdminSection === "statistics" ? "active" : ""}`}
+                  onClick={() => setActiveAdminSection("statistics")}
+                >
+                  📊 Statistics
+                </button>
+              </nav>
+
+              <div className="admin-content">
+                {activeAdminSection === "products" && (
+                  <section className="admin-section">
+                    <h2>📦 Products</h2>
+                    <p>
+                      Manage the ShopEasy catalog (add, edit, delete products).
+                      Product CRUD will be added in the next phase.
+                    </p>
+                    <div className="admin-placeholder">
+                      Coming in the next phase
+                    </div>
+                  </section>
+                )}
+
+                {activeAdminSection === "orders" && (
+                  <section className="admin-section">
+                    <h2>🧾 Orders</h2>
+                    <p>
+                      View and manage customer orders. Order management will be
+                      added in the next phase.
+                    </p>
+                    <div className="admin-placeholder">
+                      Coming in the next phase
+                    </div>
+                  </section>
+                )}
+
+                {activeAdminSection === "users" && (
+                  <section className="admin-section">
+                    <h2>👥 Users</h2>
+                    <p>
+                      View registered customers and their accounts. User
+                      management will be added in the next phase.
+                    </p>
+                    <div className="admin-placeholder">
+                      Coming in the next phase
+                    </div>
+                  </section>
+                )}
+
+                {activeAdminSection === "statistics" && (
+                  <section className="admin-section">
+                    <h2>📊 Statistics</h2>
+                    <p>
+                      Sales, revenue, and store insights will appear here. These
+                      will be added in the next phase.
+                    </p>
+                    <div className="admin-placeholder">
+                      Coming in the next phase
+                    </div>
+                  </section>
+                )}
+              </div>
+            </div>
           </div>
         </div>
       )}
