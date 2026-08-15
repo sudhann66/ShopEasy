@@ -228,8 +228,6 @@ function App() {
   // True only for the configured admin account. Normal users never see or
   // access the Admin Dashboard.
   const isAdmin = currentUserUid === ADMIN_UID;
-  // TEMP DEBUG — remove after diagnosing the missing Admin button.
-  console.log("ADMIN DEBUG", { currentUserUid, ADMIN_UID, isAdmin });
 
   const filteredProducts = products.filter((product) => {
     const matchesSearch = product.name
@@ -988,6 +986,7 @@ How can I help you today? 💙`;
         {/* Admin Dashboard button — only shown for the admin account */}
         {isAdmin && (
           <button
+            type="button"
             className="admin-btn"
             onClick={() => {
               setShowAdminDashboard(true);
